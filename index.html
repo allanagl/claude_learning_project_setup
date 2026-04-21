@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude Learning System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f3;
+    --bg3: #eeede8;
+    --text: #1a1a18;
+    --muted: #6b6b67;
+    --border: rgba(0,0,0,0.11);
+    --border2: rgba(0,0,0,0.20);
+    --accent: #185FA5;
+    --green: #3B6D11;
+    --r: 8px;
+    --rl: 12px;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #262624; --bg3: #2e2e2c;
+      --text: #f0efe8; --muted: #9a9a94;
+      --border: rgba(255,255,255,0.09); --border2: rgba(255,255,255,0.18);
+      --accent: #5b9fd8; --green: #6abf3a;
+    }
+  }
+
+  body { font-family: var(--sans); background: var(--bg3); color: var(--text); min-height: 100vh; padding: 2.5rem 1.5rem; }
+  .wrap { max-width: 860px; margin: 0 auto; }
+
+  h1 { font-size: 24px; font-weight: 500; margin-bottom: 4px; }
+  .sub { font-size: 14px; color: var(--muted); margin-bottom: 2rem; }
+
+  /* Key bar */
+  .keybar { display: flex; gap: 8px; align-items: center; background: var(--bg2); border-radius: var(--r); padding: 10px 12px; margin-bottom: 1.75rem; }
+  .keybar input { flex: 1; font-size: 12px; padding: 6px 10px; border: 0.5px solid var(--border); border-radius: var(--r); background: var(--bg); color: var(--muted); font-family: var(--mono); outline: none; }
+  .keybar input:focus { border-color: var(--accent); color: var(--text); }
+  .btn-sm { font-size: 12px; padding: 6px 14px; border: 0.5px solid var(--border2); border-radius: var(--r); background: transparent; color: var(--text); cursor: pointer; font-family: var(--sans); white-space: nowrap; }
+  .btn-sm:hover { background: var(--bg3); }
+  .keystatus { font-size: 12px; white-space: nowrap; color: var(--muted); }
+  .keystatus.ok { color: var(--green); }
+
+  /* Mode grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 0.9rem 1.1rem; cursor: pointer; transition: border-color 0.15s; }
+  .card:hover { border-color: var(--border2); }
+  .card.active { border: 1.5px solid var(--accent); }
+  .card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 5px; }
+  .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: var(--r); white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+  .card-name { font-size: 13px; font-weight: 500; }
+  .card-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* Form */
+  .form { background: var(--bg2); border-radius: var(--rl); padding: 1.1rem 1.3rem; margin-bottom: 1rem; display: none; }
+  .form.on { display: block; }
+  .form-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+  .field { margin-bottom: 12px; }
+  .label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+  .field input { width: 100%; font-size: 13px; padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--r); background: var(--bg); color: var(--text); font-family: var(--sans); outline: none; }
+  .field input:focus { border-color: var(--accent); }
+  .run-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .run-btn { font-size: 13px; padding: 8px 20px; border: 0.5px solid var(--border2); border-radius: var(--r); background: transparent; color: var(--text); cursor: pointer; font-family: var(--sans); }
+  .run-btn:hover { background: var(--bg3); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Output */
+  .output { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--rl); padding: 1.3rem 1.5rem; display: none; }
+  .output.on { display: block; }
+  .out-meta { font-size: 11px; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .spinner { width: 12px; height: 12px; border: 1.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: none; flex-shrink: 0; }
+  .spinner.on { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Rendered response */
+  .response { font-size: 14px; color: var(--text); line-height: 1.8; }
+  .response p { margin-bottom: 0.9em; }
+  .response p:last-child { margin-bottom: 0; }
+  .response .section-title { font-size: 14px; font-weight: 600; color: var(--text); margin: 1.2em 0 0.4em; }
+  .response .session-block { border-left: 2px solid var(--border2); padding-left: 14px; margin-bottom: 1.1em; }
+  .response .session-label { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 3px; }
+  .response ul { padding-left: 1.2em; margin-bottom: 0.9em; }
+  .response li { margin-bottom: 0.3em; }
+  .err { font-size: 13px; color: #c0392b; }
+
+  /* Actions */
+  .out-actions { display: none; align-items: center; justify-content: space-between; margin-top: 16px; padding-top: 12px; border-top: 0.5px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .out-actions.on { display: flex; }
+  .act-btns { display: flex; gap: 8px; }
+  .act-btn { font-size: 12px; padding: 6px 14px; border: 0.5px solid var(--border2); border-radius: var(--r); background: transparent; color: var(--text); cursor: pointer; font-family: var(--sans); }
+  .act-btn:hover { background: var(--bg2); }
+  .act-btn.copied { color: var(--green); border-color: var(--green); }
+  .reset-btn { font-size: 12px; color: var(--accent); background: none; border: none; padding: 0; cursor: pointer; font-family: var(--sans); }
+  .reset-btn:hover { text-decoration: underline; }
+
+  footer { margin-top: 3rem; font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Claude Learning System</h1>
+  <p class="sub">Pick a mode, enter your topic, get the answer right here.</p>
+
+  <div class="keybar">
+    <input type="password" id="key-input" placeholder="Paste API key once — saved for this session" />
+    <button class="btn-sm" onclick="saveKey()">Save key</button>
+    <span class="keystatus" id="key-status">No key set</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="form" id="form">
+    <p class="form-title" id="form-title"></p>
+    <div class="field">
+      <label class="label">Topic</label>
+      <input type="text" id="topic" placeholder="e.g. Make.com error handling, DSP advertising, SQL joins" onkeydown="if(event.key==='Enter')run()" />
+    </div>
+    <div id="extras"></div>
+    <div class="run-row">
+      <span class="hint" id="hint"></span>
+      <button class="run-btn" id="run-btn" onclick="run()">Run ↗</button>
+    </div>
+  </div>
+
+  <div class="output" id="output">
+    <div class="out-meta">
+      <div class="spinner" id="spinner"></div>
+      <span id="meta-text">Response</span>
+    </div>
+    <div class="response" id="response"></div>
+    <div class="out-actions" id="out-actions">
+      <div class="act-btns">
+        <button class="act-btn" id="copy-btn" onclick="copyText()">Copy text</button>
+      </div>
+      <button class="reset-btn" onclick="reset()">← New topic</button>
+    </div>
+  </div>
+
+  <footer>Claude Learning System &mdash; based on prompts by Colby Kultgen</footer>
+</div>
+
+<script>
+const MODES = [
+  {
+    id:"20h", name:"Learn in 20 hours", badge:"Plan", badgeBg:"#E6F1FB", badgeColor:"#0C447C",
+    desc:"80/20 plan — 10 two-hour sessions with review checkpoints.",
+    hint:"Best for: brand-new topics you need fast coverage on.",
+    extras:[],
+    prompt:(t)=>`I need to learn ${t} fast. Build me a 20-hour learning plan focused on the 20% of concepts that drive 80% of results. Break it into 10 two-hour sessions. For each session write a short label (e.g. "Session 1"), what to study in 2-3 sentences, one best free resource with a link if possible, and a 15-minute review exercise. Use plain prose — no markdown symbols like # or *. Separate each session clearly.`
+  },
+  {
+    id:"cheat", name:"One-page cheat sheet", badge:"Reference", badgeBg:"#EAF3DE", badgeColor:"#3B6D11",
+    desc:"Dense summary — key concepts, mental models, examples.",
+    hint:"Best for: quick review before using a tool or entering a meeting.",
+    extras:[],
+    prompt:(t)=>`Create a one-page cheat sheet for ${t}. Cover key concepts and definitions, a simple mental model, common use cases, and 2-3 concrete examples. Write in plain prose with clear section labels. No markdown symbols like # or * — just clean readable text with labeled sections separated by line breaks.`
+  },
+  {
+    id:"quiz", name:"Quiz until I break", badge:"Practice", badgeBg:"#FAEEDA", badgeColor:"#633806",
+    desc:"10 progressive questions — graded with explanations after each.",
+    hint:"Best for: after studying. Forces you to find what you don't know.",
+    extras:[{id:"level", label:"Your current level (optional)", placeholder:"e.g. beginner, read the docs, used it once"}],
+    prompt:(t,ex)=>`I just studied ${t}${ex.level?` — my current level: ${ex.level}`:""} . Give me 10 questions that test my understanding, starting easy and getting progressively harder. Number each question. Write in plain prose — no markdown symbols like # or *. Present all 10 now so I can answer them.`
+  },
+  {
+    id:"ladder", name:"Learning ladder", badge:"Structure", badgeBg:"#EEEDFE", badgeColor:"#3C3489",
+    desc:"5 levels from beginner to advanced with concrete milestones.",
+    hint:"Best for: knowing where you stand and what to tackle next.",
+    extras:[],
+    prompt:(t)=>`Break down ${t} into 5 levels of difficulty. Level 1 is total beginner, Level 5 is advanced practitioner. For each level describe what someone at this level knows and can do, list 3-5 specific skills or concepts to master, and describe one concrete testable milestone. Write in plain prose with level labels — no markdown symbols like # or *.`
+  },
+  {
+    id:"resources", name:"Best resources", badge:"Curate", badgeBg:"#FAECE7", badgeColor:"#712B13",
+    desc:"Top 5 resources ranked by effectiveness, not popularity.",
+    hint:"Best for: cutting through the noise when you don't know where to start.",
+    extras:[{id:"format", label:"Preferred format (optional)", placeholder:"e.g. video, book, hands-on, free only"}],
+    prompt:(t,ex)=>`List the top 5 resources for learning ${t} fast${ex.format?` — preference for ${ex.format}`:""} . For each: give the name and a link if available, the format (book, video, course, or person), a 2-sentence explanation of why it's worth my time, and roughly how long it takes. Rank by effectiveness not popularity. Write in plain prose — no markdown symbols like # or *.`
+  },
+  {
+    id:"feynman", name:"Feynman technique", badge:"Deepen", badgeBg:"#FBEAF0", badgeColor:"#72243E",
+    desc:"Claude explains simply, then surfaces your gaps through re-teaching.",
+    hint:"Best for: things you think you understand but can't explain clearly.",
+    extras:[],
+    prompt:(t)=>`Let's use the Feynman Technique on ${t}. Explain it to me in the simplest possible terms using plain language and one or two analogies. Then ask me to re-explain it back. Point out exactly where my explanation breaks down. Re-teach just the parts I got wrong, then ask me to try again. Write in plain prose — no markdown symbols like # or *. Start with your explanation now.`
+  }
+];
+
+let activeMode=null, savedKey="", rawText="";
+
+function saveKey(){
+  const v=document.getElementById("key-input").value.trim();
+  if(!v)return;
+  savedKey=v;
+  document.getElementById("key-input").value="••••••••••••••••••••••••";
+  const s=document.getElementById("key-status");
+  s.textContent="Key saved ✓"; s.className="keystatus ok";
+}
+
+function renderGrid(){
+  document.getElementById("grid").innerHTML=MODES.map(m=>`
+    <div class="card${activeMode===m.id?" active":""}" onclick="selectMode('${m.id}')">
+      <div class="card-top">
+        <span class="badge" style="background:${m.badgeBg};color:${m.badgeColor}">${m.badge}</span>
+        <span class="card-name">${m.name}</span>
+      </div>
+      <p class="card-desc">${m.desc}</p>
+    </div>`).join("");
+}
+
+function selectMode(id){
+  activeMode=id; renderGrid();
+  const m=MODES.find(x=>x.id===id);
+  document.getElementById("form").classList.add("on");
+  document.getElementById("form-title").textContent=m.name;
+  document.getElementById("hint").textContent=m.hint;
+  document.getElementById("extras").innerHTML=m.extras.map(e=>`
+    <div class="field">
+      <label class="label">${e.label}</label>
+      <input type="text" id="extra-${e.id}" placeholder="${e.placeholder}" />
+    </div>`).join("");
+  document.getElementById("topic").value="";
+  document.getElementById("output").classList.remove("on");
+  document.getElementById("response").innerHTML="";
+  document.getElementById("out-actions").classList.remove("on");
+  document.getElementById("topic").focus();
+}
+
+function renderResponse(text){
+  // Convert plain text with session/level/numbered labels into clean HTML
+  const lines=text.split("\n");
+  let html="", inSession=false;
+
+  for(let i=0;i<lines.length;i++){
+    let line=lines[i].trim();
+    if(!line){
+      if(inSession){html+="</div>"; inSession=false;}
+      continue;
+    }
+
+    // Strip leading markdown symbols
+    line=line.replace(/^#{1,4}\s+/,"").replace(/^\*{1,2}([^*]+)\*{1,2}$/,"$1").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/\*([^*]+)\*/g,"$1");
+
+    // Session / Level / numbered section headers
+    const isHeader=/^(session\s*\d+|level\s*\d+|resource\s*\d+|\d+[\.\)]\s)/i.test(line);
+    const isLabel=/^[A-Z][^a-z]{0,30}:/.test(line) && line.length < 60;
+
+    if(isHeader){
+      if(inSession){html+="</div>"; inSession=false;}
+      html+=`<div class="session-block"><div class="session-label">${line}</div>`;
+      inSession=true;
+    } else if(isLabel){
+      if(inSession){html+="</div>"; inSession=false;}
+      html+=`<p class="section-title">${line}</p>`;
+    } else if(/^[-•]\s/.test(lines[i])){
+      // bullet
+      if(inSession){html+="</div>"; inSession=false;}
+      const items=[];
+      while(i<lines.length && /^[-•]\s/.test(lines[i])){
+        items.push(`<li>${lines[i].replace(/^[-•]\s/,"").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")}</li>`);
+        i++;
+      }
+      i--;
+      html+=`<ul>${items.join("")}</ul>`;
+    } else {
+      html+=`<p>${line}</p>`;
+    }
+  }
+  if(inSession) html+="</div>";
+  return html;
+}
+
+async function run(){
+  const m=MODES.find(x=>x.id===activeMode);
+  if(!m)return;
+  const topic=document.getElementById("topic").value.trim();
+  if(!topic){document.getElementById("topic").focus();return;}
+  const key=savedKey||document.getElementById("key-input").value.trim();
+  if(!key||key.startsWith("•")){
+    const s=document.getElementById("key-status");
+    s.textContent="Paste your API key first"; s.className="keystatus";
+    document.getElementById("key-input").focus(); return;
+  }
+  const ex={};
+  m.extras.forEach(e=>{const el=document.getElementById("extra-"+e.id); ex[e.id]=el?el.value.trim():"";});
+
+  const prompt=m.prompt(topic,ex);
+  const outEl=document.getElementById("output");
+  const resEl=document.getElementById("response");
+  const spinner=document.getElementById("spinner");
+  const metaEl=document.getElementById("meta-text");
+  const runBtn=document.getElementById("run-btn");
+  const actions=document.getElementById("out-actions");
+
+  rawText="";
+  outEl.classList.add("on");
+  resEl.innerHTML="";
+  spinner.classList.add("on");
+  metaEl.textContent="Thinking…";
+  runBtn.disabled=true;
+  actions.classList.remove("on");
+  outEl.scrollIntoView({behavior:"smooth",block:"nearest"});
+
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key":key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",
+        max_tokens:1500,
+        stream:true,
+        messages:[{role:"user",content:prompt}]
+      })
+    });
+    if(!res.ok){const e=await res.json(); throw new Error(e.error?.message||"API error "+res.status);}
+
+    const reader=res.body.getReader();
+    const dec=new TextDecoder();
+    spinner.classList.remove("on");
+    metaEl.textContent=m.name+" — "+topic;
+    let buf="";
+
+    while(true){
+      const{done,value}=await reader.read();
+      if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split("\n"); buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith("data: "))continue;
+        const d=line.slice(6).trim();
+        if(d==="[DONE]")continue;
+        try{
+          const p=JSON.parse(d);
+          if(p.type==="content_block_delta"&&p.delta?.text){
+            rawText+=p.delta.text;
+            resEl.innerHTML=renderResponse(rawText);
+          }
+        }catch{}
+      }
+    }
+    actions.classList.add("on");
+  }catch(err){
+    spinner.classList.remove("on");
+    metaEl.textContent="Error";
+    resEl.innerHTML=`<span class="err">${err.message}</span>`;
+  }finally{
+    runBtn.disabled=false;
+  }
+}
+
+function copyText(){
+  if(!rawText)return;
+  navigator.clipboard.writeText(rawText).then(()=>{
+    const btn=document.getElementById("copy-btn");
+    btn.textContent="Copied ✓"; btn.classList.add("copied");
+    setTimeout(()=>{btn.textContent="Copy text"; btn.classList.remove("copied");},1800);
+  });
+}
+
+function reset(){
+  document.getElementById("output").classList.remove("on");
+  document.getElementById("response").innerHTML="";
+  document.getElementById("out-actions").classList.remove("on");
+  document.getElementById("topic").value="";
+  rawText="";
+  document.getElementById("topic").focus();
+}
+
+renderGrid();
+</script>
+</body>
+</html>
