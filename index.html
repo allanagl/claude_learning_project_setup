@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Claude Learning System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --color-bg: #ffffff;
+    --color-bg-secondary: #f5f5f3;
+    --color-bg-tertiary: #eeede8;
+    --color-text-primary: #1a1a18;
+    --color-text-secondary: #6b6b67;
+    --color-border: rgba(0,0,0,0.12);
+    --color-border-hover: rgba(0,0,0,0.22);
+    --color-accent: #185FA5;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #1c1c1a;
+      --color-bg-secondary: #262624;
+      --color-bg-tertiary: #2e2e2c;
+      --color-text-primary: #f0efe8;
+      --color-text-secondary: #9a9a94;
+      --color-border: rgba(255,255,255,0.10);
+      --color-border-hover: rgba(255,255,255,0.20);
+      --color-accent: #5b9fd8;
+    }
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    padding: 2.5rem 1.5rem;
+  }
+
+  .container { max-width: 860px; margin: 0 auto; }
+
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 26px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 4px; }
+  header p { font-size: 14px; color: var(--color-text-secondary); }
+
+  .key-bar {
+    display: flex; gap: 8px; align-items: center;
+    margin-bottom: 1.75rem; padding: 10px 12px;
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-md);
+  }
+  .key-bar input {
+    flex: 1; font-size: 12px; padding: 6px 10px;
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+    outline: none;
+  }
+  .key-bar input:focus { border-color: var(--color-accent); color: var(--color-text-primary); }
+  .key-save {
+    font-size: 12px; padding: 6px 14px;
+    border: 0.5px solid var(--color-border-hover);
+    border-radius: var(--radius-md);
+    background: transparent; color: var(--color-text-primary);
+    cursor: pointer; font-family: var(--font-sans); white-space: nowrap;
+  }
+  .key-save:hover { background: var(--color-bg-tertiary); }
+  .key-status { font-size: 12px; white-space: nowrap; }
+  .key-status.set { color: #3B6D11; }
+  .key-status.unset { color: var(--color-text-secondary); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px; margin-bottom: 1.5rem;
+  }
+
+  .card {
+    background: var(--color-bg);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 0.9rem 1.1rem;
+    cursor: pointer; transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--color-border-hover); }
+  .card.active { border: 1.5px solid var(--color-accent); }
+  .card-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+  .badge {
+    font-size: 11px; font-weight: 500; padding: 2px 7px;
+    border-radius: var(--radius-md); white-space: nowrap;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .card-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+  .card-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+
+  .form {
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.3rem;
+    margin-bottom: 1rem; display: none;
+  }
+  .form.visible { display: block; }
+  .form-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+  .field { margin-bottom: 12px; }
+  .field-label { font-size: 12px; color: var(--color-text-secondary); display: block; margin-bottom: 4px; }
+  .field input {
+    width: 100%; font-size: 13px; padding: 8px 10px;
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg); color: var(--color-text-primary);
+    font-family: var(--font-sans); outline: none;
+  }
+  .field input:focus { border-color: var(--color-accent); }
+  .run-row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .hint { font-size: 12px; color: var(--color-text-secondary); }
+  .run-btn {
+    font-size: 13px; padding: 8px 20px;
+    border: 0.5px solid var(--color-border-hover);
+    border-radius: var(--radius-md);
+    background: transparent; color: var(--color-text-primary);
+    cursor: pointer; font-family: var(--font-sans); white-space: nowrap;
+  }
+  .run-btn:hover { background: var(--color-bg-tertiary); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .output {
+    background: var(--color-bg);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 1.2rem 1.4rem; display: none;
+  }
+  .output.visible { display: block; }
+  .output-meta {
+    font-size: 11px; color: var(--color-text-secondary);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .spinner {
+    width: 12px; height: 12px;
+    border: 1.5px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none; flex-shrink: 0;
+  }
+  .spinner.active { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .response {
+    font-size: 14px; color: var(--color-text-primary);
+    line-height: 1.75; white-space: pre-wrap; word-break: break-word;
+  }
+  .error { font-size: 13px; color: #c0392b; }
+  .reset-btn {
+    font-size: 12px; color: var(--color-accent);
+    background: none; border: none; padding: 0;
+    cursor: pointer; font-family: var(--font-sans);
+    margin-top: 14px; display: none;
+  }
+  .reset-btn:hover { text-decoration: underline; }
+  .reset-btn.visible { display: inline-block; }
+
+  footer {
+    margin-top: 3rem; font-size: 12px;
+    color: var(--color-text-secondary); text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Claude Learning System</h1>
+    <p>Pick a mode, enter your topic, get the answer right here.</p>
+  </header>
+
+  <div class="key-bar">
+    <input type="password" id="key-input" placeholder="Paste API key once — saved for this session" />
+    <button class="key-save" onclick="saveKey()">Save key</button>
+    <span class="key-status unset" id="key-status">No key set</span>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="form" id="form">
+    <p class="form-title" id="form-title"></p>
+    <div class="field">
+      <label class="field-label">Topic</label>
+      <input type="text" id="topic" placeholder="e.g. Make.com error handling, DSP advertising, SQL joins" onkeydown="if(event.key==='Enter')runPrompt()" />
+    </div>
+    <div id="extras"></div>
+    <div class="run-row">
+      <span class="hint" id="hint"></span>
+      <button class="run-btn" id="run-btn" onclick="runPrompt()">Run ↗</button>
+    </div>
+  </div>
+
+  <div class="output" id="output">
+    <div class="output-meta">
+      <div class="spinner" id="spinner"></div>
+      <span id="meta-text">Response</span>
+    </div>
+    <div class="response" id="response"></div>
+    <button class="reset-btn" id="reset-btn" onclick="resetOutput()">← New topic</button>
+  </div>
+
+  <footer>Claude Learning System &mdash; based on prompts by Colby Kultgen</footer>
+</div>
+
+<script>
+const MODES = [
+  {
+    id: "20h", name: "Learn in 20 hours", badge: "Plan",
+    badgeBg: "#E6F1FB", badgeColor: "#0C447C",
+    desc: "80/20 plan — 10 two-hour sessions with review checkpoints.",
+    hint: "Best for: brand-new topics you need fast coverage on.",
+    extras: [],
+    prompt: (t) => `I need to learn ${t} fast. Build me a 20-hour learning plan focused on the 20% of concepts that drive 80% of results. Break it into 10 two-hour sessions. For each session: list what to study, the best free resource (link if possible), and a 15-minute review exercise at the end. Assume I'm starting from scratch.`
+  },
+  {
+    id: "cheat", name: "One-page cheat sheet", badge: "Reference",
+    badgeBg: "#EAF3DE", badgeColor: "#3B6D11",
+    desc: "Dense summary — key concepts, mental models, examples.",
+    hint: "Best for: quick review before using a tool or entering a meeting.",
+    extras: [],
+    prompt: (t) => `Create a one-page cheat sheet for ${t}. Include: key concepts and their definitions, a simple diagram or mental model if applicable, common use cases, and 2–3 concrete examples. Format it so I can review everything in under 5 minutes. Use headers and bullet points — density over prose.`
+  },
+  {
+    id: "quiz", name: "Quiz until I break", badge: "Practice",
+    badgeBg: "#FAEEDA", badgeColor: "#633806",
+    desc: "10 progressive questions — graded with explanations after each.",
+    hint: "Best for: after studying. Forces you to find what you don't know.",
+    extras: [{ id: "level", label: "Your current level (optional)", placeholder: "e.g. beginner, read the docs, used it once" }],
+    prompt: (t, ex) => `I just studied ${t}${ex.level ? ` — my current level: ${ex.level}` : ""}. Give me 10 questions that test my understanding, starting easy and getting progressively harder. Present all 10 questions now, numbered. After I answer, grade each one (correct / partial / incorrect) and explain gaps.`
+  },
+  {
+    id: "ladder", name: "Learning ladder", badge: "Structure",
+    badgeBg: "#EEEDFE", badgeColor: "#3C3489",
+    desc: "5 levels from beginner to advanced with concrete milestones.",
+    hint: "Best for: knowing where you stand and what to tackle next.",
+    extras: [],
+    prompt: (t) => `Break down ${t} into 5 levels of difficulty (Level 1 = total beginner, Level 5 = advanced practitioner). For each level: describe what someone at this level knows and can do, list 3–5 specific skills or concepts to master, and describe the milestone that signals readiness to move up. Make milestones concrete and testable.`
+  },
+  {
+    id: "resources", name: "Best resources", badge: "Curate",
+    badgeBg: "#FAECE7", badgeColor: "#712B13",
+    desc: "Top 5 resources ranked by effectiveness, not popularity.",
+    hint: "Best for: cutting through the noise when you don't know where to start.",
+    extras: [{ id: "format", label: "Preferred format (optional)", placeholder: "e.g. video, book, hands-on, free only" }],
+    prompt: (t, ex) => `List the top 5 resources for learning ${t} fast${ex.format ? ` — preference for ${ex.format}` : ""}. For each: name + link if available, format (book/video/course/person), why it's worth my time specifically, and how long it takes. Rank by effectiveness, not popularity. Be direct — skip anything average.`
+  },
+  {
+    id: "feynman", name: "Feynman technique", badge: "Deepen",
+    badgeBg: "#FBEAF0", badgeColor: "#72243E",
+    desc: "Claude explains simply, then surfaces your gaps through re-teaching.",
+    hint: "Best for: things you think you understand but can't explain clearly.",
+    extras: [],
+    prompt: (t) => `Let's use the Feynman Technique on ${t}. Explain it to me in the simplest possible terms using plain language and one or two analogies. Then ask me to re-explain it back to you. Point out exactly where my explanation breaks down or reveals a gap. Re-teach just the parts I got wrong, then ask me to try again. Start with your explanation now.`
+  }
+];
+
+let activeMode = null;
+let savedKey = "";
+
+function saveKey() {
+  const val = document.getElementById("key-input").value.trim();
+  if (!val) return;
+  savedKey = val;
+  document.getElementById("key-input").value = "••••••••••••••••••••••••";
+  const status = document.getElementById("key-status");
+  status.textContent = "Key saved ✓";
+  status.className = "key-status set";
+}
+
+function renderGrid() {
+  document.getElementById("grid").innerHTML = MODES.map(m => `
+    <div class="card${activeMode === m.id ? " active" : ""}" onclick="selectMode('${m.id}')">
+      <div class="card-top">
+        <span class="badge" style="background:${m.badgeBg};color:${m.badgeColor}">${m.badge}</span>
+        <span class="card-name">${m.name}</span>
+      </div>
+      <p class="card-desc">${m.desc}</p>
+    </div>
+  `).join("");
+}
+
+function selectMode(id) {
+  activeMode = id;
+  renderGrid();
+  const mode = MODES.find(m => m.id === id);
+  const form = document.getElementById("form");
+  form.classList.add("visible");
+  document.getElementById("form-title").textContent = mode.name;
+  document.getElementById("hint").textContent = mode.hint;
+  document.getElementById("extras").innerHTML = mode.extras.map(e => `
+    <div class="field">
+      <label class="field-label">${e.label}</label>
+      <input type="text" id="extra-${e.id}" placeholder="${e.placeholder}" />
+    </div>
+  `).join("");
+  document.getElementById("topic").value = "";
+  document.getElementById("output").classList.remove("visible");
+  document.getElementById("response").textContent = "";
+  document.getElementById("reset-btn").classList.remove("visible");
+  document.getElementById("topic").focus();
+}
+
+async function runPrompt() {
+  const mode = MODES.find(m => m.id === activeMode);
+  if (!mode) return;
+  const topic = document.getElementById("topic").value.trim();
+  if (!topic) { document.getElementById("topic").focus(); return; }
+
+  const key = savedKey || document.getElementById("key-input").value.trim();
+  if (!key || key.startsWith("•")) {
+    const status = document.getElementById("key-status");
+    status.textContent = "Paste your API key first";
+    status.className = "key-status unset";
+    document.getElementById("key-input").focus();
+    return;
+  }
+
+  const ex = {};
+  mode.extras.forEach(e => {
+    const el = document.getElementById("extra-" + e.id);
+    ex[e.id] = el ? el.value.trim() : "";
+  });
+
+  const prompt = mode.prompt(topic, ex);
+  const output = document.getElementById("output");
+  const responseEl = document.getElementById("response");
+  const spinner = document.getElementById("spinner");
+  const metaText = document.getElementById("meta-text");
+  const runBtn = document.getElementById("run-btn");
+  const resetBtn = document.getElementById("reset-btn");
+
+  output.classList.add("visible");
+  responseEl.textContent = "";
+  spinner.classList.add("active");
+  metaText.textContent = "Thinking…";
+  runBtn.disabled = true;
+  resetBtn.classList.remove("visible");
+  output.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1500,
+        stream: true,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || "API error " + res.status);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    spinner.classList.remove("active");
+    metaText.textContent = mode.name + " — " + topic;
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+            responseEl.textContent += parsed.delta.text;
+          }
+        } catch {}
+      }
+    }
+    resetBtn.classList.add("visible");
+  } catch (err) {
+    spinner.classList.remove("active");
+    metaText.textContent = "Error";
+    responseEl.innerHTML = `<span class="error">${err.message}</span>`;
+  } finally {
+    runBtn.disabled = false;
+  }
+}
+
+function resetOutput() {
+  document.getElementById("output").classList.remove("visible");
+  document.getElementById("response").textContent = "";
+  document.getElementById("reset-btn").classList.remove("visible");
+  document.getElementById("topic").value = "";
+  document.getElementById("topic").focus();
+}
+
+renderGrid();
+</script>
+</body>
+</html>
